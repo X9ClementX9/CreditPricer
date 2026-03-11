@@ -2,8 +2,6 @@
 # Dark-mode, monochrome white/grey palette
 
 from __future__ import annotations
-import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 
 # Colour palette
@@ -54,45 +52,6 @@ def plot_survival_default(df):
         xaxis_title="Time (years)", yaxis_title="Probability",
         yaxis_range=[0, 1.05],
     )
-
-
-# -- 1D sensitivity --
-
-def plot_1d_sensitivity(df, x_col, y_col, x_label, y_label, title, color="line1"):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df[x_col], y=df[y_col],
-        mode="lines",
-        line=dict(color=PALETTE.get(color, color), width=2),
-        name=y_label,
-    ))
-    return _apply_layout(fig, title, xaxis_title=x_label, yaxis_title=y_label)
-
-
-def plot_multi_sensitivity(df, x_col, y_cols, x_label, title, colors=None):
-    if colors is None:
-        colors = ["line1", "line2", "line3"]
-    fig = go.Figure()
-    for i, col in enumerate(y_cols):
-        c = colors[i % len(colors)]
-        fig.add_trace(go.Scatter(
-            x=df[x_col], y=df[col],
-            mode="lines",
-            line=dict(color=PALETTE.get(c, c), width=2),
-            name=col.replace("_", " ").title(),
-        ))
-    return _apply_layout(fig, title, xaxis_title=x_label)
-
-
-# -- Heatmap --
-
-def plot_heatmap(x, y, z, x_label, y_label, title, colorscale="Greys", z_label=""):
-    fig = go.Figure(data=go.Heatmap(
-        x=np.round(x, 4), y=np.round(y, 4), z=z,
-        colorscale=colorscale,
-        colorbar=dict(title=z_label),
-    ))
-    return _apply_layout(fig, title, xaxis_title=x_label, yaxis_title=y_label)
 
 
 # -- Bootstrap: hazard term structure --
@@ -148,19 +107,52 @@ def plot_bootstrap_survival(df_curve):
     )
 
 
-# -- Bootstrap: spread comparison --
 
-def plot_spread_comparison(df):
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=df["tenor"].astype(str) + "Y", y=df["market_spread_bps"],
-        name="Market Spread", marker_color=PALETTE["bar1"],
-    ))
-    fig.add_trace(go.Bar(
-        x=df["tenor"].astype(str) + "Y", y=df["model_spread_bps"],
-        name="Model Spread", marker_color=PALETTE["bar2"],
+# -- Basket CDS charts --
+
+def plot_basket_pd(labels: list[str], probs: list[float]):
+    # Bar chart of default probability per tranche
+    fig = go.Figure(go.Bar(
+        x=labels, y=[p * 100 for p in probs],
+        marker_color=PALETTE["bar1"],
+        text=[f"{p:.1%}" for p in probs],
+        textposition="outside",
+        textfont=dict(color=PALETTE["text"], size=11),
     ))
     return _apply_layout(
-        fig, "Market vs Model CDS Spreads",
-        xaxis_title="Tenor", yaxis_title="Spread (bps)", barmode="group",
+        fig, "P(default < T)",
+        xaxis_title="Tranche", yaxis_title="%",
+        yaxis_range=[0, 105],
+    )
+
+
+def plot_basket_spread(labels: list[str], spreads: list[float]):
+    # Bar chart of fair spread per tranche
+    fig = go.Figure(go.Bar(
+        x=labels, y=spreads,
+        marker_color=PALETTE["bar1"],
+        text=[f"{s:.0f}" for s in spreads],
+        textposition="outside",
+        textfont=dict(color=PALETTE["text"], size=11),
+    ))
+    return _apply_layout(
+        fig, "Fair Spread",
+        xaxis_title="Tranche", yaxis_title="bps",
+    )
+
+
+def plot_basket_default_count(n_defaults: list[int], probs: list[float]):
+    # Bar chart of default count distribution
+    labels = [str(n) for n in n_defaults]
+    fig = go.Figure(go.Bar(
+        x=labels, y=[p * 100 for p in probs],
+        marker_color=PALETTE["bar1"],
+        text=[f"{p:.1%}" for p in probs],
+        textposition="outside",
+        textfont=dict(color=PALETTE["text"], size=11),
+    ))
+    return _apply_layout(
+        fig, "Default Count Distribution",
+        xaxis_title="Number of Defaults", yaxis_title="%",
+        yaxis_range=[0, 105],
     )

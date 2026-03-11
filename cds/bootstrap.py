@@ -59,8 +59,9 @@ def _protection_leg_pw(notional, maturity, hazard_rates, knots, r, recovery, int
 def _fair_spread_pw(notional, maturity, hazard_rates, knots, r, recovery, frequency=4):
     prot = _protection_leg_pw(notional, maturity, hazard_rates, knots, r, recovery)
     rpv01 = _premium_leg_pw(1.0, notional, maturity, hazard_rates, knots, r, frequency)
-    if rpv01 == 0:
-        return 0.0
+    if rpv01 < 1e-12:
+        # Annuity collapsed (instant default) — spread is effectively infinite
+        return 1e8 if prot > 0 else 0.0
     return prot / rpv01
 
 
@@ -83,8 +84,18 @@ def bootstrap_hazard_rates(market_spreads_bps, recovery, r, notional=10_000_000,
             fs = _fair_spread_pw(notional, tenor, trial_rates, trial_knots, r, recovery, frequency)
             return fs - target_spread
 
-        # Find lam_k via Brent's method
-        lam_k = brentq(objective, 1e-6, 2.0, xtol=1e-10)
+        # Find lam_k via Brent's method — widen bracket dynamically
+        lo, hi = 1e-6, 2.0
+        f_lo, f_hi = objective(lo), objective(hi)
+        while f_lo * f_hi > 0 and hi < 1000:
+            hi *= 2
+            f_hi = objective(hi)
+        if f_lo * f_hi > 0:
+            raise ValueError(
+                f"Cannot calibrate {tenor}Y hazard rate: recovery too high "
+                f"or spread incompatible (tried λ up to {hi:.0f})"
+            )
+        lam_k = brentq(objective, lo, hi, xtol=1e-10)
         hazard_rates.append(lam_k)
 
         # Check model spread matches market
