@@ -110,7 +110,7 @@ def plot_bootstrap_survival(df_curve):
 
 # -- Basket CDS charts --
 
-def plot_basket_pd(labels: list[str], probs: list[float]):
+def plot_basket_pd(labels: list, probs: list):
     # Bar chart of default probability per tranche
     fig = go.Figure(go.Bar(
         x=labels, y=[p * 100 for p in probs],
@@ -126,7 +126,7 @@ def plot_basket_pd(labels: list[str], probs: list[float]):
     )
 
 
-def plot_basket_spread(labels: list[str], spreads: list[float]):
+def plot_basket_spread(labels: list, spreads: list):
     # Bar chart of fair spread per tranche
     fig = go.Figure(go.Bar(
         x=labels, y=spreads,
@@ -141,7 +141,7 @@ def plot_basket_spread(labels: list[str], spreads: list[float]):
     )
 
 
-def plot_basket_default_count(n_defaults: list[int], probs: list[float]):
+def plot_basket_default_count(n_defaults: list, probs: list):
     # Bar chart of default count distribution
     labels = [str(n) for n in n_defaults]
     fig = go.Figure(go.Bar(

@@ -26,10 +26,10 @@ def spread_from_hazard(lam: float, recovery: float) -> float:
 # -- Monte Carlo simulation --
 
 def simulate_default_times(
-    hazard_rates: list[float],
+    hazard_rates: list,
     correlation: float,
     n_simulations: int,
-    rng: np.random.Generator | None = None,
+    rng=None,
 ) -> np.ndarray:
     # Simulate correlated default times via one-factor Gaussian copula
     if rng is None:
@@ -63,8 +63,8 @@ def simulate_default_times(
 # -- k-th to default pricing --
 
 def basket_pricing(
-    hazard_rates: list[float],
-    recoveries: list[float],
+    hazard_rates: list,
+    recoveries: list,
     correlation: float,
     maturity: float,
     risk_free: float,
@@ -149,7 +149,7 @@ def basket_pricing(
 
 # -- Additional analytics --
 
-def default_count_distribution(tau: np.ndarray, maturity: float) -> list[dict]:
+def default_count_distribution(tau: np.ndarray, maturity: float) -> list:
     # Distribution of total defaults before maturity
     defaulted = tau < maturity                              # (n_sims, n_names)
     n_defaults_per_path = np.sum(defaulted, axis=1)         # (n_sims,)
@@ -163,7 +163,7 @@ def default_count_distribution(tau: np.ndarray, maturity: float) -> list[dict]:
 
 
 def expected_losses(tau: np.ndarray, sorted_indices: np.ndarray,
-                    recoveries: list[float], maturity: float) -> list[dict]:
+                    recoveries: list, maturity: float) -> list:
     # Expected loss for each k-th to default tranche
     rec = np.array(recoveries)
     sorted_rec = rec[sorted_indices]                        # (n_sims, n_names)
