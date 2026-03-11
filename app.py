@@ -24,7 +24,6 @@ from cds.plots import (
 # Page setup
 st.set_page_config(
     page_title="CDS Pricer",
-    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -36,7 +35,7 @@ with st.sidebar:
 
     st.markdown("### Contract")
     notional = st.number_input(
-        "Notional", value=10_000_000, step=1_000_000,
+        "Notional", value=1_000, step=1_000_000,
         format="%d", help="CDS notional amount",
     )
     maturity = st.number_input(
@@ -52,8 +51,8 @@ with st.sidebar:
 
     st.markdown("### Market")
     spread_bps = st.number_input(
-        "CDS Spread (bps)", value=100.0, step=5.0,
-        help="Contractual CDS spread in basis points",
+        "Contractual Spread (bps)", value=100.0, step=5.0,
+        help="CDS spread agreed at contract inception",
     )
     recovery = st.slider(
         "Recovery Rate", min_value=0.0, max_value=0.95,
@@ -95,31 +94,34 @@ with st.sidebar:
             hazard_rate = 0.02
             st.warning("Could not imply hazard rate — using default 0.02")
 
-    st.markdown("### Mark to Market")
-    enable_mtm = st.checkbox("Enable MTM calculation", value=False)
+    enable_mtm = False
     market_spread_bps = None
     mtm_hazard_rate = None
-    if enable_mtm:
-        market_spread_bps = st.number_input(
-            "Market Spread (bps)", value=spread_bps + 20, step=5.0,
-            help="Current market spread (different from contractual)",
-        )
-        # Solve for hazard rate implied by market spread
-        from scipy.optimize import brentq as _brentq
 
-        def _mtm_spread_diff(lam: float) -> float:
-            return fair_spread(
-                notional, maturity, lam, risk_free, recovery, frequency
-            ) - market_spread_bps
+    if not mode.startswith("Use hazard"):
+        st.markdown("### Mark to Market")
+        enable_mtm = st.checkbox("Enable MTM calculation", value=False)
+        if enable_mtm:
+            market_spread_bps = st.number_input(
+                "Market Spread (bps)", value=spread_bps + 20, step=5.0,
+                help="Current market spread (different from contractual)",
+            )
+            # Solve for hazard rate implied by market spread
+            from scipy.optimize import brentq as _brentq
 
-        try:
-            mtm_hazard_rate = _brentq(_mtm_spread_diff, 1e-6, 2.0, xtol=1e-10)
-            st.info(f"MTM implied λ = {mtm_hazard_rate:.6f}")
-        except Exception:
-            mtm_hazard_rate = hazard_rate
-            st.warning("Could not imply MTM hazard rate — using current λ")
+            def _mtm_spread_diff(lam: float) -> float:
+                return fair_spread(
+                    notional, maturity, lam, risk_free, recovery, frequency
+                ) - market_spread_bps
 
-    include_accrual = st.checkbox("Include accrual on default", value=True)
+            try:
+                mtm_hazard_rate = _brentq(_mtm_spread_diff, 1e-6, 2.0, xtol=1e-10)
+                st.info(f"MTM implied λ = {mtm_hazard_rate:.6f}")
+            except Exception:
+                mtm_hazard_rate = hazard_rate
+                st.warning("Could not imply MTM hazard rate — using current λ")
+
+
 
 
 # -- Main content --
@@ -147,7 +149,7 @@ with tab1:
         spread_bps=spread_bps,
         market_spread_bps=market_spread_bps,
         frequency=frequency,
-        include_accrual=include_accrual,
+        include_accrual=True,
     )
 
     # Key metrics
@@ -162,20 +164,7 @@ with tab1:
     col7.metric("Survival Q(T)", f"{report['survival_prob_at_maturity']:.2%}")
     col8.metric("Default PD(T)", f"{report['default_prob_at_maturity']:.2%}")
 
-    # Detailed table
-    st.markdown("---")
-    st.markdown("#### Detailed Report")
 
-    summary_df = pd.DataFrame([
-        {"Metric": "Survival Probability Q(T)", "Value": f"{report['survival_prob_at_maturity']:.2f}"},
-        {"Metric": "Default Probability PD(T)", "Value": f"{report['default_prob_at_maturity']:.2f}"},
-        {"Metric": "Premium Leg PV", "Value": f"${report['premium_leg_pv']:,.2f}"},
-        {"Metric": "Protection Leg PV", "Value": f"${report['protection_leg_pv']:,.2f}"},
-        {"Metric": "Fair Spread (bps)", "Value": f"{report['fair_spread_bps']:.2f}"},
-        {"Metric": "CDS PV / Mark-to-Market", "Value": f"${report['cds_pv']:,.2f}"},
-        {"Metric": "Risky PV01", "Value": f"${report['risky_pv01']:,.2f}"},
-    ])
-    st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
     # Probability chart
     st.markdown("---")
